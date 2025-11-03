@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { GoogleGenAI, LiveServerMessage, Modality, Type } from '@google/genai';
 import { TranscriptTurn, Feedback } from '../types';
 import { PERSONA_RULES, FEEDBACK_GUIDELINES } from '../constants';
 import { encode, decode, decodeAudioData } from '../utils/audio';
-import { MicrophoneIcon, StopIcon, Spinner } from './icons';
+import { MicrophoneIcon, PauseIcon, PlayIcon, Spinner } from './icons';
 
 interface InterviewScreenProps {
   jobDescription: string;
@@ -14,6 +15,7 @@ interface InterviewScreenProps {
 const InterviewScreen: React.FC<InterviewScreenProps> = ({ jobDescription, resume, onInterviewEnd }) => {
   const [isConnecting, setIsConnecting] = useState(true);
   const [isMicOn, setIsMicOn] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [transcript, setTranscript] = useState<TranscriptTurn[]>([]);
   const [status, setStatus] = useState('Connecting to AI...');
   
@@ -27,6 +29,12 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({ jobDescription, resum
   const currentOutputTranscriptionRef = useRef('');
   const nextStartTimeRef = useRef(0);
   const audioSourcesRef = useRef(new Set<AudioBufferSourceNode>());
+  const isPausedRef = useRef(isPaused);
+
+  useEffect(() => {
+    isPausedRef.current = isPaused;
+  }, [isPaused]);
+
 
   const addTranscriptTurn = useCallback((turn: TranscriptTurn) => {
     setTranscript(prev => {
@@ -218,6 +226,7 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({ jobDescription, resum
     setStatus('Listening...');
     addTranscriptTurn({ speaker: 'System', text: 'Interview started.' });
     setIsMicOn(true);
+    setIsPaused(false);
     
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     inputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
@@ -228,6 +237,8 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({ jobDescription, resum
     scriptProcessorRef.current = scriptProcessor;
 
     scriptProcessor.onaudioprocess = (event) => {
+        if(isPausedRef.current) return;
+
         const inputData = event.inputBuffer.getChannelData(0);
         const l = inputData.length;
         const int16 = new Int16Array(l);
@@ -247,6 +258,28 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({ jobDescription, resum
     scriptProcessor.connect(inputAudioContextRef.current.destination);
   };
   
+  const togglePause = useCallback(() => {
+    setIsPaused(prev => {
+        const isNowPaused = !prev;
+        if (isNowPaused) {
+            setStatus('Paused');
+            outputAudioContextRef.current?.suspend();
+        } else {
+            setStatus('Listening...');
+            outputAudioContextRef.current?.resume();
+        }
+        return isNowPaused;
+    });
+  }, []);
+
+  const handleMainButtonClick = () => {
+    if (!isMicOn) {
+        startMicrophone();
+    } else {
+        togglePause();
+    }
+  };
+
   const transcriptRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (transcriptRef.current) {
@@ -272,17 +305,30 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({ jobDescription, resum
         </div>
       <div className="flex-shrink-0 flex flex-col items-center">
         <p className="text-gray-600 mb-4 h-6">{status}</p>
-        <button
-          onClick={isMicOn ? () => endInterview() : startMicrophone}
-          disabled={isConnecting}
-          className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all duration-300
-            ${isConnecting ? 'bg-gray-500 cursor-not-allowed' : 
-            isMicOn ? 'bg-red-600 hover:bg-red-700 shadow-[0_0_20px_5px] shadow-red-500/30' : 
-            'bg-green-600 hover:bg-green-700 shadow-[0_0_20px_5px] shadow-green-500/30'}`}
-        >
-          {isConnecting ? <Spinner className="w-8 h-8 text-white"/> : isMicOn ? <StopIcon className="w-8 h-8 text-white" /> : <MicrophoneIcon className="w-8 h-8 text-white" />}
-        </button>
-        <button onClick={endInterview} className="mt-4 text-gray-500 hover:text-red-600 text-sm">End Interview & Get Feedback</button>
+        <div className="flex items-center justify-center h-20">
+          <button
+            onClick={handleMainButtonClick}
+            disabled={isConnecting}
+            className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all duration-300
+              ${isConnecting ? 'bg-gray-500 cursor-not-allowed' : 
+              !isMicOn || isPaused ? 'bg-green-600 hover:bg-green-700 shadow-[0_0_20px_5px] shadow-green-500/30' : 
+              'bg-orange-500 hover:bg-orange-600 shadow-[0_0_20px_5px] shadow-orange-500/30'}`}
+          >
+            {isConnecting ? <Spinner className="w-8 h-8 text-white"/> : 
+              !isMicOn ? <MicrophoneIcon className="w-8 h-8 text-white" /> : 
+              isPaused ? <PlayIcon className="w-8 h-8 text-white" /> :
+              <PauseIcon className="w-8 h-8 text-white" />
+            }
+          </button>
+          {isMicOn && (
+            <button 
+                onClick={endInterview}
+                className="ml-6 px-5 py-3 bg-red-600 text-white font-semibold rounded-lg shadow-md hover:bg-red-700 transition-all focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-gray-100"
+            >
+                End Interview
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
