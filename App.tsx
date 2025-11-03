@@ -50,7 +50,7 @@ const App: React.FC = () => {
       <div className="w-full max-w-4xl mx-auto">
         <header className="text-center mb-8">
           <h1 className="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-orange-500">
-            AI Mock Interview Coach
+            EPS Mock Interview Coach
           </h1>
           <p className="text-gray-600 mt-2">Practice your technical interviewing skills with a Gemini-powered AI candidate.</p>
         </header>

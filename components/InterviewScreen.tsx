@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { GoogleGenAI, LiveServerMessage, Modality, Type } from '@google/genai';
+import { GoogleGenAI, LiveServerMessage, Modality, Type, Blob } from '@google/genai';
 import { TranscriptTurn, Feedback } from '../types';
 import { PERSONA_RULES, FEEDBACK_GUIDELINES } from '../constants';
 import { encode, decode, decodeAudioData } from '../utils/audio';
@@ -36,23 +35,43 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({ jobDescription, resum
   }, [isPaused]);
 
 
+  // FIX: Updated transcription logic to correctly handle interleaved speakers and partial/final updates.
   const addTranscriptTurn = useCallback((turn: TranscriptTurn) => {
     setTranscript(prev => {
-        if (turn.isPartial) {
-            const lastTurn = prev[prev.length - 1];
-            if (lastTurn && lastTurn.speaker === turn.speaker && lastTurn.isPartial) {
-                const newTurn = { ...lastTurn, text: lastTurn.text + turn.text };
-                return [...prev.slice(0, -1), newTurn];
+        const newTranscript = [...prev];
+        // Find last turn for this speaker
+        let lastTurnForSpeakerIndex = -1;
+        for (let i = newTranscript.length - 1; i >= 0; i--) {
+            if (newTranscript[i].speaker === turn.speaker) {
+                lastTurnForSpeakerIndex = i;
+                break;
             }
-        } else if (turn.text.trim()) {
-             const lastTurn = prev[prev.length - 1];
-             if(lastTurn && lastTurn.speaker === turn.speaker && lastTurn.isPartial) {
-                return [...prev.slice(0, -1), { ...turn, isPartial: false }];
-             }
         }
-        if(turn.text.trim()){
+
+        const lastTurnForSpeaker = lastTurnForSpeakerIndex !== -1 ? newTranscript[lastTurnForSpeakerIndex] : null;
+
+        // If it's a partial update and there was a previous partial turn for this speaker
+        if (turn.isPartial && lastTurnForSpeaker && lastTurnForSpeaker.isPartial) {
+            newTranscript[lastTurnForSpeakerIndex] = turn;
+            return newTranscript;
+        }
+
+        // If it's a final update and there was a previous partial turn for this speaker
+        if (!turn.isPartial && lastTurnForSpeaker && lastTurnForSpeaker.isPartial) {
+            if (turn.text.trim()) {
+                newTranscript[lastTurnForSpeakerIndex] = turn;
+            } else {
+                // Remove the partial if the final is empty
+                newTranscript.splice(lastTurnForSpeakerIndex, 1);
+            }
+            return newTranscript;
+        }
+
+        // Otherwise, add a new turn if it has content
+        if (turn.text.trim()) {
             return [...prev, turn];
         }
+
         return prev;
     });
   }, []);
@@ -89,7 +108,8 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({ jobDescription, resum
     const finalTranscript = transcript.map(t => `${t.speaker}: ${t.text}`).join('\n');
     
     // Generate feedback
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+    // FIX: Use process.env.API_KEY as per the guidelines.
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
     const response = await ai.models.generateContent({
         model: "gemini-2.5-flash",
         contents: `Based on these guidelines:\n${FEEDBACK_GUIDELINES}\n\nAnd this interview transcript:\n${finalTranscript}\n\nPlease provide your feedback.`,
@@ -127,7 +147,8 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({ jobDescription, resum
         
         ${PERSONA_RULES}`;
         
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+    // FIX: Use process.env.API_KEY as per the guidelines.
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
     
     outputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
 
@@ -148,16 +169,18 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({ jobDescription, resum
                 setStatus('Ready. Click the microphone to start.');
             },
             onmessage: async (message: LiveServerMessage) => {
+                // FIX: Pass the full accumulated transcription to the state update function.
                 if(message.serverContent?.inputTranscription) {
                     const { text } = message.serverContent.inputTranscription;
                     currentInputTranscriptionRef.current += text;
-                    addTranscriptTurn({ speaker: 'Interviewer', text: text, isPartial: true });
+                    addTranscriptTurn({ speaker: 'Interviewer', text: currentInputTranscriptionRef.current, isPartial: true });
                 }
                 
+                // FIX: Pass the full accumulated transcription to the state update function.
                 if(message.serverContent?.outputTranscription) {
                     const { text } = message.serverContent.outputTranscription;
                     currentOutputTranscriptionRef.current += text;
-                    addTranscriptTurn({ speaker: 'Candidate', text: text, isPartial: true });
+                    addTranscriptTurn({ speaker: 'Candidate', text: currentOutputTranscriptionRef.current, isPartial: true });
                 }
 
                 if (message.serverContent?.turnComplete) {
@@ -245,7 +268,7 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({ jobDescription, resum
         for (let i = 0; i < l; i++) {
             int16[i] = inputData[i] * 32768;
         }
-        const pcmBlob = {
+        const pcmBlob: Blob = {
             data: encode(new Uint8Array(int16.buffer)),
             mimeType: 'audio/pcm;rate=16000',
         };
