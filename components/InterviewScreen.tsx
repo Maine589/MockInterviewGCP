@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-// FIX: Removed 'LiveSession' as it is not an exported member of '@google/genai'.
 import { GoogleGenAI, LiveServerMessage, Modality, Type } from '@google/genai';
 import { TranscriptTurn, Feedback } from '../types';
 import { PERSONA_RULES, FEEDBACK_GUIDELINES } from '../constants';
@@ -18,7 +17,6 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({ jobDescription, resum
   const [transcript, setTranscript] = useState<TranscriptTurn[]>([]);
   const [status, setStatus] = useState('Connecting to AI...');
   
-  // FIX: Replaced 'LiveSession' with 'any' since the type is not exported from the library.
   const sessionPromiseRef = useRef<Promise<any> | null>(null);
   const inputAudioContextRef = useRef<AudioContext | null>(null);
   const outputAudioContextRef = useRef<AudioContext | null>(null);
@@ -258,13 +256,13 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({ jobDescription, resum
 
   return (
     <div className="flex flex-col h-full">
-        <div className="flex-grow bg-gray-900/50 rounded-lg p-4 overflow-y-auto mb-4 min-h-[40vh]" ref={transcriptRef}>
+        <div className="flex-grow bg-gray-200/75 rounded-lg p-4 overflow-y-auto mb-4 min-h-[40vh]" ref={transcriptRef}>
             {transcript.map((turn, index) => (
                 <div key={index} className={`mb-3 ${turn.speaker === 'Interviewer' ? 'text-right' : 'text-left'}`}>
                     <div className={`inline-block p-3 rounded-xl max-w-xl ${
                         turn.speaker === 'Interviewer' ? 'bg-blue-600 text-white rounded-br-none' :
-                        turn.speaker === 'Candidate' ? 'bg-gray-700 text-gray-200 rounded-bl-none' :
-                        'bg-yellow-800 text-yellow-100 text-center w-full'
+                        turn.speaker === 'Candidate' ? 'bg-gray-300 text-gray-800 rounded-bl-none' :
+                        'bg-yellow-200 text-yellow-800 text-center w-full'
                     }`}>
                         <p className="font-bold text-sm mb-1">{turn.speaker}</p>
                         <p>{turn.text}</p>
@@ -273,18 +271,18 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({ jobDescription, resum
             ))}
         </div>
       <div className="flex-shrink-0 flex flex-col items-center">
-        <p className="text-gray-400 mb-4 h-6">{status}</p>
+        <p className="text-gray-600 mb-4 h-6">{status}</p>
         <button
           onClick={isMicOn ? () => endInterview() : startMicrophone}
           disabled={isConnecting}
           className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all duration-300
-            ${isConnecting ? 'bg-gray-600 cursor-not-allowed' : 
-            isMicOn ? 'bg-red-600 hover:bg-red-500 shadow-[0_0_20px_5px] shadow-red-500/50' : 
-            'bg-green-600 hover:bg-green-500 shadow-[0_0_20px_5px] shadow-green-500/50'}`}
+            ${isConnecting ? 'bg-gray-500 cursor-not-allowed' : 
+            isMicOn ? 'bg-red-600 hover:bg-red-700 shadow-[0_0_20px_5px] shadow-red-500/30' : 
+            'bg-green-600 hover:bg-green-700 shadow-[0_0_20px_5px] shadow-green-500/30'}`}
         >
           {isConnecting ? <Spinner className="w-8 h-8 text-white"/> : isMicOn ? <StopIcon className="w-8 h-8 text-white" /> : <MicrophoneIcon className="w-8 h-8 text-white" />}
         </button>
-        <button onClick={endInterview} className="mt-4 text-gray-400 hover:text-red-400 text-sm">End Interview & Get Feedback</button>
+        <button onClick={endInterview} className="mt-4 text-gray-500 hover:text-red-600 text-sm">End Interview & Get Feedback</button>
       </div>
     </div>
   );

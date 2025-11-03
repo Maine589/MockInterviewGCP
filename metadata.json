@@ -1,5 +1,5 @@
 {
-  "name": "AI Mock Interview Coach",
+  "name": "EPS Mock Interview Coach",
   "description": "An AI-powered role-play assistant to practice technical interviewing skills. Upload a job description and a candidate resume, then engage in a real-time voice interview. The AI provides detailed feedback based on best practices.",
   "requestFramePermissions": [
     "microphone"

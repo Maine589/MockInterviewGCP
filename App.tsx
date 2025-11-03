@@ -46,15 +46,15 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-100 flex flex-col items-center justify-center p-4 font-sans">
+    <div className="min-h-screen bg-gray-100 text-gray-800 flex flex-col items-center justify-center p-4 font-sans">
       <div className="w-full max-w-4xl mx-auto">
         <header className="text-center mb-8">
-          <h1 className="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-teal-400">
+          <h1 className="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-orange-500">
             AI Mock Interview Coach
           </h1>
-          <p className="text-gray-400 mt-2">Practice your technical interviewing skills with a Gemini-powered AI candidate.</p>
+          <p className="text-gray-600 mt-2">Practice your technical interviewing skills with a Gemini-powered AI candidate.</p>
         </header>
-        <main className="bg-gray-800 rounded-2xl shadow-2xl p-6 md:p-8 min-h-[60vh] flex flex-col">
+        <main className="bg-white rounded-2xl shadow-xl p-6 md:p-8 min-h-[60vh] flex flex-col">
           {renderContent()}
         </main>
         <footer className="text-center mt-8 text-gray-500 text-sm">

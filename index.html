@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale-1.0" />
     <title>AI Mock Interview Coach</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- pdf.js for PDF parsing -->
@@ -15,19 +15,21 @@
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
       }
     </script>
-  <script type="importmap">
+<script type="importmap">
 {
   "imports": {
     "react": "https://aistudiocdn.com/react@^19.2.0",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
     "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.28.0"
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.28.0",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.0",
+    "vite": "https://aistudiocdn.com/vite@^7.1.12"
   }
 }
 </script>
 </head>
-  <body class="bg-gray-900 text-gray-100">
+  <body class="bg-gray-100 text-gray-800">
     <div id="root"></div>
-    <script type="module" src="./index.tsx"></script>
+    <script type="module" src="/index.tsx"></script>
   </body>
 </html>

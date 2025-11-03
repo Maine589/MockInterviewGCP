@@ -21,18 +21,18 @@ const FileUpload: React.FC<{
     
     return (
         <div className="w-full">
-            <label htmlFor={id} className="block text-sm font-medium text-gray-300 mb-2">{label}</label>
-            <div className="mt-2 flex justify-center rounded-lg border border-dashed border-gray-600 px-6 py-10 hover:border-blue-400 transition-colors">
+            <label htmlFor={id} className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
+            <div className="mt-2 flex justify-center rounded-lg border border-dashed border-gray-300 px-6 py-10 hover:border-blue-500 transition-colors">
                 <div className="text-center">
                     {fileState.loading ? (
-                        <Spinner className="mx-auto h-12 w-12 text-blue-400" />
+                        <Spinner className="mx-auto h-12 w-12 text-blue-500" />
                     ) : fileState.file ? (
-                        <CheckCircleIcon className="mx-auto h-12 w-12 text-green-400" />
+                        <CheckCircleIcon className="mx-auto h-12 w-12 text-green-500" />
                     ) : (
-                        <UploadIcon className="mx-auto h-12 w-12 text-gray-500" />
+                        <UploadIcon className="mx-auto h-12 w-12 text-gray-400" />
                     )}
-                    <div className="mt-4 flex text-sm leading-6 text-gray-400">
-                        <label htmlFor={id} className="relative cursor-pointer rounded-md font-semibold text-blue-400 focus-within:outline-none focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2 focus-within:ring-offset-gray-900 hover:text-blue-300">
+                    <div className="mt-4 flex text-sm leading-6 text-gray-600">
+                        <label htmlFor={id} className="relative cursor-pointer rounded-md font-semibold text-blue-600 focus-within:outline-none focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2 focus-within:ring-offset-gray-100 hover:text-blue-500">
                             <span>Upload a file</span>
                             <input id={id} name={id} type="file" className="sr-only" onChange={handleFileChange} accept=".txt,.pdf,.docx" />
                         </label>
@@ -40,7 +40,7 @@ const FileUpload: React.FC<{
                     </div>
                      <p className="text-xs leading-5 text-gray-500">TXT, PDF, DOCX</p>
                     {fileState.file && !fileState.loading && (
-                        <div className="mt-2 text-xs flex items-center justify-center text-green-400">
+                        <div className="mt-2 text-xs flex items-center justify-center text-green-600">
                            <FileTextIcon className="h-4 w-4 mr-1"/> {fileState.file.name}
                         </div>
                     )}
@@ -81,8 +81,8 @@ const FileUploadScreen: React.FC<FileUploadScreenProps> = ({ onFilesReady }) => 
 
   return (
     <div className="flex flex-col items-center justify-center h-full">
-      <h2 className="text-2xl font-semibold text-white mb-6">Setup Your Interview</h2>
-      <p className="text-gray-400 mb-8 text-center max-w-2xl">
+      <h2 className="text-2xl font-semibold text-gray-900 mb-6">Setup Your Interview</h2>
+      <p className="text-gray-600 mb-8 text-center max-w-2xl">
         Upload the Job Description for the role you're hiring for, and the resume of the candidate persona you want to interview.
       </p>
       <div className="w-full max-w-3xl grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
@@ -90,12 +90,12 @@ const FileUploadScreen: React.FC<FileUploadScreenProps> = ({ onFilesReady }) => 
          <FileUpload id="resume-upload" label="Candidate Resume" onFileUpload={(file) => processFile(file, setResumeState)} fileState={resumeState} />
       </div>
 
-      {error && <p className="text-red-400 mt-4">{error}</p>}
+      {error && <p className="text-red-500 mt-4">{error}</p>}
 
       <button
         onClick={handleStartInterview}
         disabled={!isReady}
-        className="mt-8 px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-500 disabled:bg-gray-600 disabled:cursor-not-allowed transition-all focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-gray-900"
+        className="mt-8 px-8 py-3 bg-orange-500 text-white font-semibold rounded-lg shadow-md hover:bg-orange-600 disabled:bg-orange-300 disabled:cursor-not-allowed transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-white"
       >
         Start Interview
       </button>
