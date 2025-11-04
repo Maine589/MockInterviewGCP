@@ -4,17 +4,20 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>EPS Mock Interview Coach</title>
+    
+    <!-- Styling -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- pdf.js for PDF parsing -->
+
+    <!-- Document Parsers (loaded from CDN) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
-    <!-- mammoth.js for DOCX parsing -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.5.0/mammoth.browser.min.js"></script>
     <script>
-      // Set worker source for pdf.js
+      // Required configuration for pdf.js worker
       if (typeof pdfjsLib !== 'undefined') {
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
       }
     </script>
+    
 <script type="importmap">
 {
   "imports": {
@@ -30,6 +33,7 @@
 </head>
   <body class="bg-gray-100 text-gray-800">
     <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
+    <!-- Main application script -->
+    <script type="module" src="./index.tsx"></script>
   </body>
 </html>

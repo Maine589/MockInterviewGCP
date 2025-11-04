@@ -23,23 +23,23 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({ jobDescription, resum
   const outputAudioContextRef = useRef<AudioContext | null>(null);
   const scriptProcessorRef = useRef<ScriptProcessorNode | null>(null);
   const mediaStreamSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
   
   const currentInputTranscriptionRef = useRef('');
   const currentOutputTranscriptionRef = useRef('');
   const nextStartTimeRef = useRef(0);
   const audioSourcesRef = useRef(new Set<AudioBufferSourceNode>());
   const isPausedRef = useRef(isPaused);
+  const isEndingRef = useRef(false);
 
   useEffect(() => {
     isPausedRef.current = isPaused;
   }, [isPaused]);
 
 
-  // FIX: Updated transcription logic to correctly handle interleaved speakers and partial/final updates.
   const addTranscriptTurn = useCallback((turn: TranscriptTurn) => {
     setTranscript(prev => {
         const newTranscript = [...prev];
-        // Find last turn for this speaker
         let lastTurnForSpeakerIndex = -1;
         for (let i = newTranscript.length - 1; i >= 0; i--) {
             if (newTranscript[i].speaker === turn.speaker) {
@@ -50,24 +50,20 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({ jobDescription, resum
 
         const lastTurnForSpeaker = lastTurnForSpeakerIndex !== -1 ? newTranscript[lastTurnForSpeakerIndex] : null;
 
-        // If it's a partial update and there was a previous partial turn for this speaker
         if (turn.isPartial && lastTurnForSpeaker && lastTurnForSpeaker.isPartial) {
             newTranscript[lastTurnForSpeakerIndex] = turn;
             return newTranscript;
         }
 
-        // If it's a final update and there was a previous partial turn for this speaker
         if (!turn.isPartial && lastTurnForSpeaker && lastTurnForSpeaker.isPartial) {
             if (turn.text.trim()) {
                 newTranscript[lastTurnForSpeakerIndex] = turn;
             } else {
-                // Remove the partial if the final is empty
                 newTranscript.splice(lastTurnForSpeakerIndex, 1);
             }
             return newTranscript;
         }
 
-        // Otherwise, add a new turn if it has content
         if (turn.text.trim()) {
             return [...prev, turn];
         }
@@ -77,6 +73,9 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({ jobDescription, resum
   }, []);
 
   const stopMicrophone = useCallback(() => {
+    mediaStreamRef.current?.getTracks().forEach(track => track.stop());
+    mediaStreamRef.current = null;
+
     if (mediaStreamSourceRef.current) {
         mediaStreamSourceRef.current.disconnect();
         mediaStreamSourceRef.current = null;
@@ -94,6 +93,9 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({ jobDescription, resum
   }, []);
 
   const endInterview = useCallback(async () => {
+    if (isEndingRef.current) return;
+    isEndingRef.current = true;
+
     setStatus('Interview ended. Generating feedback...');
     stopMicrophone();
 
@@ -107,32 +109,56 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({ jobDescription, resum
 
     const finalTranscript = transcript.map(t => `${t.speaker}: ${t.text}`).join('\n');
     
-    // Generate feedback
-    // FIX: Use process.env.API_KEY as per the guidelines.
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
-    const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: `Based on these guidelines:\n${FEEDBACK_GUIDELINES}\n\nAnd this interview transcript:\n${finalTranscript}\n\nPlease provide your feedback.`,
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    grade: { type: Type.STRING },
-                    feedback: { type: Type.STRING }
-                },
-                required: ['grade', 'feedback']
-            }
-        }
-    });
+    // Gracefully handle missing API key
+    if (!process.env.API_KEY) {
+        const noKeyFeedback: Feedback = {
+            grade: 'N/A',
+            feedback: 'Could not generate feedback because the API Key is not configured. Please add your VITE_API_KEY to the .env.local file and restart the server.'
+        };
+        onInterviewEnd(finalTranscript, noKeyFeedback);
+        return;
+    }
     
-    const feedbackText = response.text;
-    const feedbackJson = JSON.parse(feedbackText) as Feedback;
-
-    onInterviewEnd(finalTranscript, feedbackJson);
+    // Generate feedback
+    try {
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: `Based on these guidelines:\n${FEEDBACK_GUIDELINES}\n\nAnd this interview transcript:\n${finalTranscript}\n\nPlease provide your feedback.`,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        grade: { type: Type.STRING },
+                        feedback: { type: Type.STRING }
+                    },
+                    required: ['grade', 'feedback']
+                }
+            }
+        });
+        
+        const feedbackText = response.text;
+        const feedbackJson = JSON.parse(feedbackText) as Feedback;
+        onInterviewEnd(finalTranscript, feedbackJson);
+    } catch (error) {
+        console.error("Error generating feedback:", error);
+        const errorFeedback: Feedback = {
+            grade: 'Error',
+            feedback: `An error occurred while generating feedback. Please check the console for details. This may be due to an invalid API key or a network issue.`
+        };
+        onInterviewEnd(finalTranscript, errorFeedback);
+    }
   }, [transcript, stopMicrophone, onInterviewEnd]);
 
   useEffect(() => {
+    if (!process.env.API_KEY) {
+      setStatus('API Key is not configured. Please check your .env.local file.');
+      addTranscriptTurn({ speaker: 'System', text: 'Configuration Error: API Key is missing.'});
+      setIsConnecting(false);
+      return;
+    }
+    
     const systemInstruction = `You are an AI role-play assistant. Your persona comes from the resume that is provided. You will act as a software engineer candidate. The user is the "Hiring Manager".
         
         This is the Job Description for the role:
@@ -147,8 +173,7 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({ jobDescription, resum
         
         ${PERSONA_RULES}`;
         
-    // FIX: Use process.env.API_KEY as per the guidelines.
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
     outputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
 
@@ -169,14 +194,14 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({ jobDescription, resum
                 setStatus('Ready. Click the microphone to start.');
             },
             onmessage: async (message: LiveServerMessage) => {
-                // FIX: Pass the full accumulated transcription to the state update function.
+                if (isEndingRef.current) return;
+
                 if(message.serverContent?.inputTranscription) {
                     const { text } = message.serverContent.inputTranscription;
                     currentInputTranscriptionRef.current += text;
                     addTranscriptTurn({ speaker: 'Interviewer', text: currentInputTranscriptionRef.current, isPartial: true });
                 }
                 
-                // FIX: Pass the full accumulated transcription to the state update function.
                 if(message.serverContent?.outputTranscription) {
                     const { text } = message.serverContent.outputTranscription;
                     currentOutputTranscriptionRef.current += text;
@@ -187,6 +212,7 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({ jobDescription, resum
                     addTranscriptTurn({ speaker: 'Interviewer', text: currentInputTranscriptionRef.current, isPartial: false });
                     if (currentInputTranscriptionRef.current.toLowerCase().includes('end interview')) {
                         endInterview();
+                        return; // Stop processing further messages
                     }
                     currentInputTranscriptionRef.current = '';
 
@@ -223,7 +249,9 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({ jobDescription, resum
                 setIsConnecting(false);
             },
             onclose: (e: CloseEvent) => {
-                setStatus('Interview session closed.');
+                if (!isEndingRef.current) {
+                  setStatus('Interview session closed.');
+                }
             }
         }
     });
@@ -252,6 +280,7 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({ jobDescription, resum
     setIsPaused(false);
     
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaStreamRef.current = stream;
     inputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
     const source = inputAudioContextRef.current.createMediaStreamSource(stream);
     mediaStreamSourceRef.current = source;
@@ -260,7 +289,7 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({ jobDescription, resum
     scriptProcessorRef.current = scriptProcessor;
 
     scriptProcessor.onaudioprocess = (event) => {
-        if(isPausedRef.current) return;
+        if(isPausedRef.current || isEndingRef.current) return;
 
         const inputData = event.inputBuffer.getChannelData(0);
         const l = inputData.length;
@@ -273,7 +302,9 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({ jobDescription, resum
             mimeType: 'audio/pcm;rate=16000',
         };
         sessionPromiseRef.current?.then(session => {
-            session.sendRealtimeInput({ media: pcmBlob });
+            if (!isEndingRef.current) {
+               session.sendRealtimeInput({ media: pcmBlob });
+            }
         });
     };
     
